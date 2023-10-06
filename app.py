@@ -1,6 +1,7 @@
+import os
+import json
 from flask import Flask, request
 from flask_restful import Api, Resource
-import json
 from collections import OrderedDict
 
 # Initialize Flask app
@@ -9,10 +10,17 @@ app = Flask(__name__)
 # Initialize Flask-RESTful API
 api = Api(app)
 
+
+# Check if JSON file exists
+def json_file_exists():
+    return os.path.exists("data.json")
+
 # Function to load data from the JSON file
 def load_data():
-    with open("data.json", "r") as file:
-        return json.load(file)
+    if json_file_exists():
+        with open("data.json", "r") as file:
+            return json.load(file)
+    return []
 
 # Function to save data back to the JSON file
 def save_data(data):
@@ -25,12 +33,14 @@ def get_next_id(data):
     return max_id + 1
 
 # Resource for handling multiple items (GET to retrieve all, POST to add new)
-class ItemList(Resource):
+class ItemList(Resource): # This class inherits from Resource, which is a class provided by the flask_restful extension. This allows the class to leverage various functionalities offered by flask_restful for creating API endpoints (as will be done later with the add_resource method).
     def get(self):
         return load_data(), 200
 
     def post(self):
-        input_data = request.get_json()  # Get data from request payload
+        input_data = request.get_json()  # Get data from request payload        
+        if not input_data.get('units') or not input_data.get('description'): # Validation for 'units' and 'description' in the payload
+            return {"message": "Both 'units' and 'description' are required fields."}, 400
         data = load_data()  # Load current data
         new_id = get_next_id(data)  # Get next ID for the new item
         # Create a new item using OrderedDict to maintain order
@@ -44,23 +54,32 @@ class ItemList(Resource):
         return new_item, 201  # Return the new item with HTTP status 201 (created)
 
 # Resource for handling individual items (PUT to update, DELETE to remove)
-class Item(Resource):
+class Item(Resource): 
     def put(self, item_id):
         item_data = request.get_json()  # Get data from request payload
+        if not item_data.get('units') or not isinstance(item_data.get('units'), int) or item_data.get('units') <= 0:
+            return {"message": "The 'units' field is required and must be a positive integer."}, 400
+        if not item_data.get('description') or len(item_data.get('description').strip()) == 0:
+            return {"message": "The 'description' field is required and cannot be empty."}, 400
         data = load_data()  # Load current data
         # Find the item with the specified ID
         item = next(filter(lambda x: x["id"] == item_id, data), None)
-        if item:
-            item.update(item_data)  # Update the item with new data
-            save_data(data)  # Save updated data back to the JSON file
-            return item, 200  # Return the updated item with HTTP status 200 (OK)
-        return {"message": "Item not found"}, 404  # Item not found error
-
+        if not item:
+            return {"message": "Item not found"}, 404  # If item was not found, return an error         
+        item.update(item_data)  # Update the item with new data
+        save_data(data)  # Save updated data back to the JSON file
+        return item, 200  # Return the updated item with HTTP status 200 (OK)
+        
     def delete(self, item_id):
         data = load_data()  # Load current data
-        # Remove the item with the specified ID from the list
-        data = [item for item in data if item["id"] != item_id]
-        save_data(data)  # Save updated data back to the JSON file
+        # Find the item with the specified ID
+        item = next(filter(lambda x: x["id"] == item_id, data), None)
+        if not item:
+            return {"message": "Item not found"}, 404  # If item was not found, return an error 
+        
+        # Create a new list excluding the item with the provided ID
+        updated_items = [item for item in data if item["id"] != item_id]
+        save_data(updated_items)  # Save updated data back to the JSON file
         return {"message": "Item deleted"}, 200  # Confirm deletion with HTTP status 200 (OK)
 
 # Add resources to the API with their respective routes

@@ -1,0 +1,37 @@
+[
+  {
+    "id": 1,
+    "units": 2,
+    "description": "Milk cartons"
+  },
+  {
+    "id": 2,
+    "units": 5,
+    "description": "Bananas"
+  },
+  {
+    "id": 3,
+    "units": 3,
+    "description": "Chicken breasts"
+  },
+  {
+    "id": 4,
+    "units": 1,
+    "description": "Bread loaf"
+  },
+  {
+    "id": 5,
+    "units": 12,
+    "description": "Eggs"
+  },
+  {
+    "id": 6,
+    "units": 1,
+    "description": "Orange juice"
+  },
+  {
+    "id": 7,
+    "units": 2,
+    "description": "Tomato sauce jars"
+  }
+]

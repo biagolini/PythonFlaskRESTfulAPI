@@ -10,7 +10,6 @@ app = Flask(__name__)
 # Initialize Flask-RESTful API
 api = Api(app)
 
-
 # Check if JSON file exists
 def json_file_exists():
     return os.path.exists("data.json")
@@ -32,6 +31,20 @@ def get_next_id(data):
     max_id = max([item["id"] for item in data])
     return max_id + 1
 
+# Function to validate inputs
+def check_data(item_data):
+    if not item_data.get('units') or not isinstance(item_data.get('units'), int) or item_data.get('units') <= 0:
+        return {"message": "The 'units' field is required and must be a positive integer."}, 400
+    if not item_data.get('description') or len(item_data.get('description').strip()) == 0:
+        return {"message": "The 'description' field is required and cannot be empty."}, 400
+    return None
+
+# Function to validate inputs
+def check_missing_data(item):
+    if not item:
+        return {"message": "Item not found"}, 404  # If item was not found, return an error   
+    return None
+
 # Resource for handling multiple items (GET to retrieve all, POST to add new)
 class ItemList(Resource): # This class inherits from Resource, which is a class provided by the flask_restful extension. This allows the class to leverage various functionalities offered by flask_restful for creating API endpoints (as will be done later with the add_resource method).
     def get(self):
@@ -39,8 +52,9 @@ class ItemList(Resource): # This class inherits from Resource, which is a class 
 
     def post(self):
         input_data = request.get_json()  # Get data from request payload        
-        if not input_data.get('units') or not input_data.get('description'): # Validation for 'units' and 'description' in the payload
-            return {"message": "Both 'units' and 'description' are required fields."}, 400
+        error = check_data(input_data)  # Validation
+        if error:
+            return error
         data = load_data()  # Load current data
         new_id = get_next_id(data)  # Get next ID for the new item
         # Create a new item using OrderedDict to maintain order
@@ -56,17 +70,18 @@ class ItemList(Resource): # This class inherits from Resource, which is a class 
 # Resource for handling individual items (PUT to update, DELETE to remove)
 class Item(Resource): 
     def put(self, item_id):
-        item_data = request.get_json()  # Get data from request payload
-        if not item_data.get('units') or not isinstance(item_data.get('units'), int) or item_data.get('units') <= 0:
-            return {"message": "The 'units' field is required and must be a positive integer."}, 400
-        if not item_data.get('description') or len(item_data.get('description').strip()) == 0:
-            return {"message": "The 'description' field is required and cannot be empty."}, 400
+        input_data = request.get_json()  # Get data from request payload
+        error = check_data(input_data)  # Validation
+        if error:
+            return error
         data = load_data()  # Load current data
         # Find the item with the specified ID
         item = next(filter(lambda x: x["id"] == item_id, data), None)
-        if not item:
-            return {"message": "Item not found"}, 404  # If item was not found, return an error         
-        item.update(item_data)  # Update the item with new data
+        error = check_missing_data(item) # If item was not found, return an error  
+        if error:
+            return error         
+        input_data.pop('id', None) # Remove 'id' from input data to prevent ID updates
+        item.update(input_data)  # Update the item with new data
         save_data(data)  # Save updated data back to the JSON file
         return item, 200  # Return the updated item with HTTP status 200 (OK)
         
@@ -74,9 +89,9 @@ class Item(Resource):
         data = load_data()  # Load current data
         # Find the item with the specified ID
         item = next(filter(lambda x: x["id"] == item_id, data), None)
-        if not item:
-            return {"message": "Item not found"}, 404  # If item was not found, return an error 
-        
+        error = check_missing_data(item) # If item was not found, return an error  
+        if error:
+            return error         
         # Create a new list excluding the item with the provided ID
         updated_items = [item for item in data if item["id"] != item_id]
         save_data(updated_items)  # Save updated data back to the JSON file

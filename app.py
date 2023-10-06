@@ -10,9 +10,12 @@ app = Flask(__name__)
 # Initialize Flask-RESTful API
 api = Api(app)
 
-# Check if JSON file exists
+# Check if JSON file exists and create it if not
 def json_file_exists():
-    return os.path.exists("data.json")
+    if not os.path.exists("data.json"):
+        with open("data.json", "w") as file:
+            json.dump([], file) # Initialize with an empty list
+    return True
 
 # Function to load data from the JSON file
 def load_data():
@@ -28,6 +31,8 @@ def save_data(data):
 
 # Function to get the next available ID based on the highest existing ID
 def get_next_id(data):
+    if not data:  # If data is empty
+        return 1  # Return the first ID
     max_id = max([item["id"] for item in data])
     return max_id + 1
 
